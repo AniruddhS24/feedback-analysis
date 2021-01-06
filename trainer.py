@@ -7,7 +7,6 @@ from models.predictor import *
 def train_supp(savefile, num_samples, device):
     train_x, train_y, dev_x, dev_y = read_dataset('YELP', num_samples)
     train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME=savefile, device=device)
-    #sup = FeatureImportanceScorer('suppmodel.pt')
 
 def train_pred():
     # supmodel = FeatureImportanceScorer('suppmodel.pt')

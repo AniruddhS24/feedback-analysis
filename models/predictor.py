@@ -21,6 +21,12 @@ class DAN(nn.Module):
         nn.init.kaiming_uniform_(self.dense1.weight)
         nn.init.kaiming_uniform_(self.dense2.weight)
 
+    def process_input(self, veclist):
+        inptensor = torch.zeros(len(veclist), veclist[0][1].shape[0])
+        for i in range(len(veclist)):
+            inptensor[i] = veclist[i][1]
+        return inptensor
+
     def forward(self, x):
         x = self.dense1(x)
         x = self.act1(x)
@@ -49,13 +55,14 @@ class BERTPred(nn.Module):
             for param in self.bert.parameters():
                 param.requires_grad = False
 
-    def convert_for_bert_input(self, rationales):
+    def process_input(self, rationales):
+        textrats = [rationales[i][1] for i in range(len(rationales))]
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         # fullrecon = []
         # for batch_item in rationales:
         #     reconstructed = " ".join(rationales[batch_item]).replace(" ##","")
         #     fullrecon.append(reconstructed)
-        return tokenizer(text=rationales,
+        return tokenizer(text=textrats,
                   add_special_tokens=True,
                   padding='max_length',
                   return_tensors='pt')["input_ids"]
@@ -63,7 +70,7 @@ class BERTPred(nn.Module):
     # input is of shape (batchsize, seqlen) - must be tokenized beforehand
     def forward(self, inpids):
         outputs = self.bert(input_ids=inpids)
-        cumout = outputs['pooler_output']
+        cumout = outputs[1] # pooler_output
         x = self.dpout(cumout)
         x = self.dense1(x)
         x = self.act1(x)
@@ -72,21 +79,39 @@ class BERTPred(nn.Module):
         # output is of shape (batchsize, 2)
         return op
 
-class SentimentPredictor:
-    # TODO: make the extractor class more general (extractor superclass), should work with all extractor models
-    '''
-    Takes as input a TRAINED predictor network and an extractor model
-    '''
-    def __init__(self, net, extractor:HeuristicExtractor):
+class Predictor(object):
+    def __init__(self, net, extractor):
         self.net = net
         self.extractor = extractor
 
-    def predict(self, x):
-        rationales, rationalevecs = self.extractor.contiguous_discretize(x, rationalelengthprop=0.2)
-        if (isinstance(self.net, BERTPred)):
-            pred = self.net.forward(self.net.convert_for_bert_input(rationales)).argmax(dim=1)
-        elif (isinstance(self.net, DAN)):
-            pred = self.net.forward(rationalevecs).argmax(dim=1) # 1/0 predictions
+    def predict(self, x, soft=False):
+        raise Exception("Cannot instantiate Extractor base class. Please call one of "
+                        + ", ".join([cls.__name__ for cls in Predictor.__subclasses__()]))
+
+class DANPredictor(Predictor):
+    def __init__(self, net, extractor):
+        if not isinstance(self.net, DAN):
+            raise Exception("DANPredictor only compatible for DAN network")
+        super().__init__(net, extractor)
+
+    def predict(self, x, soft=False):
+        rationale_data = self.extractor.extract_rationales(x)
+        pred = self.net.forward(self.net.process_input(rationale_data["rationale_avg_vec"]))
+        if soft:
+            return pred, rationale_data["rationales"]
         else:
-            pred = None
-        return rationales, pred
+            return pred.argmax(dim=1), rationale_data["rationales"]
+
+class BERTPredictor(Predictor):
+    def __init__(self, net, extractor):
+        if not isinstance(self.net, BERTPred):
+            raise Exception("BERTPredictor only compatible for BERTPred network")
+        super().__init__(net, extractor)
+
+    def predict(self, x, soft=False):
+        rationale_data = self.extractor.extract_rationales(x)
+        pred = self.net.forward(self.net.process_input(rationale_data["rationales"]))
+        if soft:
+            return pred, rationale_data["rationales"]
+        else:
+            return pred.argmax(dim=1), rationale_data["rationales"]
