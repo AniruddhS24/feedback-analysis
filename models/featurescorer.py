@@ -52,8 +52,8 @@ class FeatureImportanceScorer:
     '''
     Takes as input a trained SuppModel
     '''
-    def __init__(self, model_param_path=None):
-        self.net = self.load_model(model_param_path)
+    def __init__(self, model_file_name=None):
+        self.net = self.load_model(model_file_name)
         self.tokenizer = AutoTokenizer.from_pretrained(self.net.model_name)
 
     def load_model(self, filename):

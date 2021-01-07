@@ -6,7 +6,7 @@ from models.predictor import *
 
 def evaluate_supp(savefile, num_samples, device):
     train_x, train_y, dev_x, dev_y = read_dataset('YELP', num_samples)
-    model = FeatureImportanceScorer(model_param_path=savefile)
+    model = FeatureImportanceScorer(model_file_name=savefile)
     evaluate_supp_model(model, dev_x, dev_y, device)
 
 if __name__ == '__main__':
