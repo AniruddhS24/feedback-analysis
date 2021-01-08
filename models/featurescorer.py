@@ -10,7 +10,7 @@ class SuppModel(nn.Module):
                                                       output_attentions=True)  # TODO: change to BertConfig.from_json_file('./tf_model/my_tf_model_config.json')
         self.bert = AutoModel.from_pretrained(bert_model_type, config=self.bert_config)
         self.dpout = nn.Dropout(p=0.1) # regularisation
-        self.dense1 = nn.Linear(self.bert.config.hidden_size, 50)
+        self.dense1 = nn.Linear(self.bert.trainingconfig.hidden_size, 50)
         self.act1 = nn.ReLU()
         self.dense2 = nn.Linear(50, 2)
         self.softmx = nn.LogSoftmax(dim=1)
@@ -52,16 +52,17 @@ class FeatureImportanceScorer:
     '''
     Takes as input a trained SuppModel
     '''
-    def __init__(self, model_file_name=None):
-        self.net = self.load_model(model_file_name)
+    def __init__(self, model_file_path):
+        self.net = self.load_model(model_file_path)
         self.tokenizer = AutoTokenizer.from_pretrained(self.net.model_name)
 
     def load_model(self, filename):
-        net = SuppModel(bert_model_type='bert-base-uncased', freeze=False)
-        if filename is None:
-            return net
-        checkpt = torch.load("saved/" + filename)
-        net.load_state_dict(checkpt['state_dict'])
+        try:
+            checkpt = torch.load(filename)
+            net = SuppModel(bert_model_type='bert-base-uncased', freeze=False)
+            net.load_state_dict(checkpt['state_dict'])
+        except:
+            raise Exception("Error! Model checkpoint file not found, or file not saved correctly.")
         return net
 
     def process_input(self, x):
@@ -89,17 +90,22 @@ class FeatureImportanceScorer:
         scoreop["attention_scores"] = attns
         return scoreop
 
-def evaluate_supp_model(model, dev_x, dev_y, device):
+def evaluate_supp_model(net, tokenizer, dev_x, dev_y, device):
     print("Evaluating Supp Model...")
-    model.net.eval()
+    net.eval()
     # dev set accuracy
-    dev_x = model.process_input(dev_x)["input_ids"]
+    dev_x = tokenizer(text=dev_x,
+                     add_special_tokens=True,
+                     padding='max_length',
+                     truncation='only_first',
+                     return_attention_mask=True,
+                     return_tensors='pt')["input_ids"]
     dev_y = torch.tensor(dev_y)
     batch_size = min(32, dev_x.shape[0]-1)
     tp, tn, fp, fn = 0,0,0,0
     for i in range(batch_size, dev_x.shape[0], batch_size):
         dev_x_batch, dev_y_batch = dev_x[i-batch_size:i].to(device), dev_y[i-batch_size:i].to(device)
-        pred_lbl = model.net(dev_x_batch).argmax(dim=1)
+        pred_lbl = net(dev_x_batch).argmax(dim=1)
         for j in range(len(pred_lbl)):
             if pred_lbl[j]==1 and dev_y_batch[j]==1:
                 tp += 1
@@ -115,21 +121,28 @@ def evaluate_supp_model(model, dev_x, dev_y, device):
     print("Dev Accuracy: {0} ({1} / {2}) \t F1 Score: {3}".format(acc * 100, tp, tp+tn+fp+fn, f1))
     return acc, f1
 
-def train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME, device):
-    model = FeatureImportanceScorer()
-    model.net = model.net.to(device)
-    train_x = model.process_input(train_x)["input_ids"]
+def train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME, device, config):
+    net = SuppModel(bert_model_type=config['model_name'], freeze=config['freeze'])
+    net = net.to(device)
+
+    tokenizer = AutoTokenizer.from_pretrained(config['model_name'])
+    train_x = tokenizer(text=train_x,
+                     add_special_tokens=True,
+                     padding='max_length',
+                     truncation='only_first',
+                     return_attention_mask=True,
+                     return_tensors='pt')["input_ids"]
     train_y = torch.tensor(train_y)
 
     # hyperparameters
-    EPOCHS = 20
-    batch_size = 32
-    lr = 2e-5
+    EPOCHS = config['EPOCHS']
+    batch_size = config['batch_size']
+    lr = config['lr']
     objective = nn.NLLLoss()
-    optimizer = torch.optim.Adam(model.net.parameters(), lr=lr, weight_decay=0.001)
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=config['l2reg'])
 
     print("Training Supp Model...")
-    model.net.train()
+    net.train()
     # training
     for epoch in range(EPOCHS):
         tot_loss = 0.0
@@ -139,31 +152,27 @@ def train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME, device):
             xbatch = train_x[perm[i-batch_size:i]]
             ybatch = train_y[perm[i-batch_size:i]]
             xbatch, ybatch = xbatch.to(device), ybatch.to(device)
-            pred = model.net(xbatch)
+            pred = net(xbatch)
             loss = objective(pred, ybatch)
             tot_loss += loss.item()
             loss.backward()
-            nn.utils.clip_grad_norm_(model.net.parameters(), max_norm=5.0)
+            nn.utils.clip_grad_norm_(net.parameters(), max_norm=5.0)
             optimizer.step()
             del loss, pred
         print("Epoch {0}      Loss {1}".format(epoch, tot_loss))
         if epoch%4==0:
-            acc, f1 = evaluate_supp_model(model,dev_x,dev_y, device)
+            acc, f1 = evaluate_supp_model(net, tokenizer, dev_x,dev_y, device)
             checkpt = {
-                'state_dict': model.net.state_dict(),
+                'state_dict': net.state_dict(),
                 'accuracy': acc*100,
-                'epochs': EPOCHS,
-                'batch_size': batch_size,
-                'lr': lr}
+                'config': config}
             torch.save(checkpt, FILENAME[0:FILENAME.index('.')] + str(epoch) + 'epoch.pt')
 
-    acc, f1 = evaluate_supp_model(model, dev_x, dev_y, device)
+    acc, f1 = evaluate_supp_model(net, tokenizer, dev_x, dev_y, device)
     checkpt = {
-        'state_dict': model.net.state_dict(),
+        'state_dict': net.state_dict(),
         'accuracy': acc*100,
-        'epochs': EPOCHS,
-        'batch_size': batch_size,
-        'lr': lr}
+        'config': config}
     torch.save(checkpt, FILENAME)
 
 

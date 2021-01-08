@@ -76,7 +76,7 @@ class HeuristicExtractor(Extractor):
         rationale_data["binary_mask"] = binarymask
         # rationales: list of string rationales of form (batch_id, rationale, attn_score)
         # rationalevecs: list of averaged vectors of form (batch_id, averaged tensor, attn_score)
-        return rationale_data
+        return scoreop, rationale_data
 
 '''
 Parameterized bare-LSTM tagging model
@@ -90,10 +90,10 @@ class BiLSTMNetwork(nn.Module):
         else:
             self.lstm = nn.LSTM(input_size=inp_size, hidden_size=lstm_hid_size, num_layers=num_layers,
                                 batch_first=True, bidirectional=True)
-        self.dense1 = nn.Linear(lstm_hid_size, 50)
+        self.dense1 = nn.Linear(2*lstm_hid_size, 50)
         self.act1 = nn.ReLU()
         self.dense2 = nn.Linear(50, 2)
-        self.act2 = nn.LogSoftmax()
+        self.act2 = nn.LogSoftmax(dim=1)
         #self.act2 = nn.Softmax() change to this if needed
 
         nn.init.kaiming_uniform_(self.dense1.weight)
@@ -199,8 +199,8 @@ class CRF(nn.Module):
         score = torch.zeros(batch_size)
         for t in range(1,seqlen):
             mask_t = mask[:, t]
-            emit_t = torch.tensor([ems[t, tgs[t]] for ems, tgs in zip(emissions, tags)])
-            trans_t = torch.tensor([self.transitions[tgs[t - 1], tgs[t]] for tgs in tags])
+            emit_t = torch.tensor([ems[t, int(tgs[t].item())] for ems, tgs in zip(emissions, tags)])
+            trans_t = torch.tensor([self.transitions[int(tgs[t - 1].item()), int(tgs[t].item())] for tgs in tags])
             score += (emit_t + trans_t) * mask_t
         return score # return score (batchsz,) tensor
 
@@ -316,14 +316,14 @@ class LSTM_CRF(nn.Module):
         return scores, taggedseq
 
 class LSTMCRFExtractor(Extractor):
-    def __init__(self, featscorer, model_file_name):
+    def __init__(self, featscorer, model_file_path):
         super(LSTMCRFExtractor, self).__init__(featscorer)
         self.featscorer = featscorer
-        self.net = self.load_model(filename=model_file_name)
+        self.net = self.load_model(filename=model_file_path)
 
     def load_model(self, filename):
         try:
-            checkpt = torch.load("saved/" + filename)
+            checkpt = torch.load(filename)
             net = LSTM_CRF(inp_size=checkpt["config"]["inp_size"],
                            lstm_hid_size=checkpt["config"]["lstm_hid_size"],
                            num_layers=checkpt["config"]["num_layers"],
@@ -361,28 +361,23 @@ class LSTMCRFExtractor(Extractor):
 
         rationale_data["rationales"] = rationales
         rationale_data["rationale_avg_vec"] = rationalevecs
+        rationale_data["binary_mask"] = preds
         return rationale_data
 
-def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device):
-    inp_size = 769
-    lstm_hid_size = 256
-    num_layers = 2
-    dropout = 0.1
-
-    net = LSTM_CRF(inp_size=inp_size, # 768 + 1 = 769 dim input vector
-                     lstm_hid_size=lstm_hid_size,
-                     num_layers=num_layers,
-                     dropout=dropout)
+def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device, config):
+    net = LSTM_CRF(inp_size=config['inp_size'],
+                     lstm_hid_size=config['lstm_hid_size'],
+                     num_layers=config['num_layers'],
+                     dropout=config['dropout'])
     net = net.to(device)
 
-    #fsmodel = FeatureImportanceScorer(model_file_name=fsmodel_filename)
     heuristicext = HeuristicExtractor(fsmodel)
 
     # hyperparameters
-    EPOCHS = 20
-    batch_size = 32
-    lr = 2e-5
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=0.001)
+    EPOCHS = config['EPOCHS']
+    batch_size = config['batch_size']
+    lr = config['lr']
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=config['l2reg'])
 
     for epoch in range(EPOCHS):
         tot_loss = 0.0
@@ -390,22 +385,22 @@ def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device):
         for i in range(batch_size, len(perm), batch_size):
             optimizer.zero_grad()
             xbatch_str = [train_x[j] for j in perm[i - batch_size:i]]
-            scoreop = fsmodel.get_score_features(xbatch_str)
-            lstm_inp = torch.cat((scoreop["bert_outputs"], scoreop["attention_scores"]), dim=2)
+            scoreop, rationale_data = heuristicext.extract_rationales(xbatch_str)
+            # scoreop = fsmodel.get_score_features(xbatch_str)
+            lstm_inp = torch.cat((scoreop["bert_outputs"], scoreop["attention_scores"].unsqueeze(2)), dim=2)
             xbatch = lstm_inp.to(device)
 
-            ybatch = heuristicext.extract_rationales(xbatch_str)["binary_mask"]
+            mask = scoreop["tokenizer"]["attention_mask"].to(device)
+            # del scoreop
+            ybatch = rationale_data["binary_mask"]
             ybatch = ybatch.to(device)
-
-            mask = scoreop["tokenizer"]["attention_mask"]
-            mask = mask[perm[i-batch_size:i]].to(device)
 
             crfloss = net(x = xbatch, y = ybatch, mask=mask)
             tot_loss += crfloss.item()
             crfloss.backward()
             nn.utils.clip_grad_norm_(net.parameters(), max_norm=5.0)
             optimizer.step()
-            del crfloss
+            del crfloss, xbatch, ybatch, lstm_inp, scoreop, mask, rationale_data
 
         print("Epoch {0}      Loss {1}".format(epoch, tot_loss))
         if epoch % 4 == 0:
@@ -415,16 +410,13 @@ def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device):
                 'epochs': epoch,
                 'batch_size': batch_size,
                 'lr': lr,
-                'config': {'inp_size': inp_size, 'lstm_hid_size':lstm_hid_size, 'num_layers':num_layers, 'dropout':dropout}}
+                'config': config}
             torch.save(checkpt, FILENAME[0:FILENAME.index('.')] + str(epoch) + 'epoch.pt')
 
     #acc, f1 = evaluate_ext_model(model, dev_x, dev_y, device)
     checkpt = {
         'state_dict': net.state_dict(),
-        'epochs': EPOCHS,
-        'batch_size': batch_size,
-        'lr': lr,
-        'config': {'inp_size': inp_size, 'lstm_hid_size':lstm_hid_size, 'num_layers':num_layers, 'dropout':dropout}}
+        'config': config}
     torch.save(checkpt, FILENAME)
 
 # if __name__ == '__main__':

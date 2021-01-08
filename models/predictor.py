@@ -16,7 +16,7 @@ class DAN(nn.Module):
         self.dense1 = nn.Linear(inp_size, hid_size)
         self.act1 = nn.ReLU()
         self.dense2 = nn.Linear(hid_size, op_size)
-        self.act2 = nn.LogSoftmax()
+        self.act2 = nn.LogSoftmax(dim=1)
 
         nn.init.kaiming_uniform_(self.dense1.weight)
         nn.init.kaiming_uniform_(self.dense2.weight)
@@ -43,7 +43,7 @@ class BERTPred(nn.Module):
                                                       output_attentions=True)  # TODO: change to BertConfig.from_json_file('./tf_model/my_tf_model_config.json')
         self.bert = AutoModel.from_pretrained(bert_model_type, config=self.bert_config)
         self.dpout = nn.Dropout(p=0.1)  # regularisation
-        self.dense1 = nn.Linear(self.bert.config.hidden_size, 50)
+        self.dense1 = nn.Linear(self.bert.trainingconfig.hidden_size, 50)
         self.act1 = nn.ReLU()
         self.dense2 = nn.Linear(50, 2)
         self.softmx = nn.LogSoftmax(dim=1)
@@ -148,19 +148,16 @@ def evaluate_dan_pred_model(net, extmodel, dev_x, dev_y, device):
     return acc, f1
 
 # expects train_x as list of strings, train_y as one-hot encoded label tensor
-def train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME, device):
-    inp_size = 768
-    hid_size = 256
-    op_size = 5
-    net = DAN(inp_size, hid_size, op_size)
+def train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME, device, config):
+    net = DAN(config['inp_size'], config['hid_size'], config['op_size'])
     net = net.to(device)
 
     # hyperparameters
-    EPOCHS = 20
-    batch_size = 32
-    lr = 2e-5
+    EPOCHS = config['EPOCHS']
+    batch_size = config['batch_size']
+    lr = config['lr']
     objective = nn.NLLLoss()
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=0.001)
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=config['l2reg'])
 
     print("Training DAN Pred Model...")
     net.train()
@@ -189,16 +186,12 @@ def train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME, dev
             checkpt = {
                 'state_dict': net.state_dict(),
                 'accuracy': acc*100,
-                'epochs': EPOCHS,
-                'batch_size': batch_size,
-                'lr': lr}
+                'config': config}
             torch.save(checkpt, FILENAME[0:FILENAME.index('.')] + str(epoch) + 'epoch.pt')
 
     acc, f1 = evaluate_dan_pred_model(net, extmodel, dev_x, dev_y, device)
     checkpt = {
         'state_dict': net.state_dict(),
         'accuracy': acc*100,
-        'epochs': EPOCHS,
-        'batch_size': batch_size,
-        'lr': lr}
+        'config': config}
     torch.save(checkpt, FILENAME)

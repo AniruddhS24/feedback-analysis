@@ -1,0 +1,54 @@
+import sys
+import argparse
+import yaml
+from data.dataprocessing import *
+from models.featurescorer import *
+from models.extractor import *
+from models.predictor import *
+
+def _parse_args():
+    with open(r'config.yaml') as f:
+        trainingconfig = yaml.full_load(f)
+
+    parser = argparse.ArgumentParser(description='trainer.py')
+    parser.add_argument('--model', type=str, help='model to train: (' + ', '.join(trainingconfig.keys()) + ')')
+    parser.add_argument('--savepath', type=str, default='saved/nonamemodel.pt',
+                        help='file path to save model state dict, set up as saved/[filename].pt')
+    parser.add_argument('--dataset', type=str, default='YELP',
+                        help='training dataset to use (YELP or TWITTER)')
+    parser.add_argument('--num_samples', type=int, default=1000, help='number of training samples')
+    args = parser.parse_args()
+    return args
+
+if __name__ == '__main__':
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        print("Running on the GPU")
+    else:
+        device = torch.device("cpu")
+        print("Running on the CPU")
+
+    args = _parse_args()
+    modelname = args.model
+    datasetname = args.dataset
+    savefile = args.savepath
+    num_samples = args.num_samples
+
+    with open(r'config.yaml') as f:
+        trainingconfig = yaml.full_load(f)
+
+    if modelname == 'suppmodel':
+        train_x, train_y, dev_x, dev_y = read_dataset(datasetname, num_samples)
+        train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME=savefile, device=device, config=trainingconfig[modelname])
+    if modelname == 'lstmcrf':
+        train_x, train_y, dev_x, dev_y = read_dataset('YELP', num_samples)
+        fsmodel = FeatureImportanceScorer('suppmodeel.pt')
+        train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME=savefile, device=device, config=trainingconfig[modelname])
+
+    # sup = FeatureImportanceScorer('suppmodel2.pt')
+    # scrop = sup.get_score_features(["I absolutely hate this place and it really sucks", "I love this place so much! It is amazing!"])
+    # print(scrop['attention_scores'][0])
+    # print(scrop['attention_scores'][1])
+    # extmodel = HeuristicExtractor(sup)
+    # rationales, ratvecs = extmodel.contiguous_discretize(["I absolutely hate this place and it really sucks", "I love this place so much! It is amazing!"])
+    # print(rationales)
