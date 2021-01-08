@@ -17,6 +17,7 @@ def _parse_args():
     parser.add_argument('--dataset', type=str, default='YELP',
                         help='training dataset to use (YELP or TWITTER)')
     parser.add_argument('--num_samples', type=int, default=1000, help='number of training samples')
+    parser.add_argument('--auxmodelsavepath', type=str, default=None, help='auxiliary model param file save path (ext or supp)')
     args = parser.parse_args()
     return args
 
@@ -33,6 +34,7 @@ if __name__ == '__main__':
     datasetname = args.dataset
     savefile = args.savepath
     num_samples = args.num_samples
+    auxpath = args.auxmodelsavepath
 
     with open(r'config.yaml') as f:
         trainingconfig = yaml.full_load(f)
@@ -41,8 +43,8 @@ if __name__ == '__main__':
         train_x, train_y, dev_x, dev_y = read_dataset(datasetname, num_samples)
         train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME=savefile, device=device, config=trainingconfig[modelname])
     if modelname == 'lstmcrf':
-        train_x, train_y, dev_x, dev_y = read_dataset('YELP', num_samples)
-        fsmodel = FeatureImportanceScorer('suppmodeel.pt')
+        train_x, train_y, dev_x, dev_y = read_dataset(datasetname, num_samples)
+        fsmodel = FeatureImportanceScorer(auxpath)
         train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME=savefile, device=device, config=trainingconfig[modelname])
 
     # sup = FeatureImportanceScorer('suppmodel2.pt')
