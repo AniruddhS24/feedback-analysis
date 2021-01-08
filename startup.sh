@@ -9,8 +9,6 @@ sudo python3 get-pip.py
 pip --version
 git --version
 git clone https://github.com/AniruddhS24/FeedbackAnalysisSystem.git
-mkdir data
-mkdir saved
 cd FeedbackAnalysisSystem
 pip install -r requirements.txt
 echo -e "Now upload data files, and saved model files from local machine or cloud"
