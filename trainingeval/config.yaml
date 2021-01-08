@@ -1,25 +1,24 @@
-training_config:
-  suppmodel:
-    model_name: 'bert-base-uncased'
-    freeze: False
-    EPOCHS: 20
-    batch_size: 32
-    lr: 2e-5
-    l2reg: 0.001
-  lstmcrf:
-    inp_size: 769  # 768 + 1 = 769 dim input vector
-    lstm_hid_size: 256
-    num_layers: 2
-    dropout: 0.1
-    EPOCHS: 20
-    batch_size: 32
-    lr: 2e-5
-    l2reg: 0.001
-  danpred:
-    inp_size: 768
-    hid_size: 256
-    op_size: 5
-    EPOCHS: 20
-    batch_size: 32
-    lr: 2e-5
-    l2reg: 0.001
+suppmodel:
+  model_name: 'bert-base-uncased'
+  freeze: False
+  EPOCHS: 20
+  batch_size: 32
+  lr: 2e-5
+  l2reg: 0.001
+lstmcrf:
+  inp_size: 769  # 768 + 1 = 769 dim input vector
+  lstm_hid_size: 256
+  num_layers: 2
+  dropout: 0.1
+  EPOCHS: 20
+  batch_size: 32
+  lr: 2e-5
+  l2reg: 0.001
+danpred:
+  inp_size: 768
+  hid_size: 256
+  op_size: 5
+  EPOCHS: 20
+  batch_size: 32
+  lr: 2e-5
+  l2reg: 0.001

@@ -1,16 +1,20 @@
-import sys
+from inspect import getsourcefile
+import os.path as path, sys
+current_dir = path.dirname(path.abspath(getsourcefile(lambda:0)))
+sys.path.insert(0, current_dir[:current_dir.rfind(path.sep)])
 import argparse
 import yaml
 from data.dataprocessing import *
 from models.featurescorer import *
 from models.extractor import *
 from models.predictor import *
+sys.path.pop(0)
 
 def _parse_args():
-    with open(r'config.yaml') as f:
+    with open(r'trainingeval/config.yaml') as f:
         trainingconfig = yaml.full_load(f)
 
-    parser = argparse.ArgumentParser(description='trainer.py')
+    parser = argparse.ArgumentParser(description='TRAINER')
     parser.add_argument('--model', type=str, help='model to train: (' + ', '.join(trainingconfig.keys()) + ')')
     parser.add_argument('--savepath', type=str, default='saved/nonamemodel.pt',
                         help='file path to save model state dict, set up as saved/[filename].pt')
@@ -22,6 +26,8 @@ def _parse_args():
     return args
 
 if __name__ == '__main__':
+    args = _parse_args()
+
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
         print("Running on the GPU")
@@ -29,7 +35,6 @@ if __name__ == '__main__':
         device = torch.device("cpu")
         print("Running on the CPU")
 
-    args = _parse_args()
     modelname = args.model
     datasetname = args.dataset
     savefile = args.savepath
