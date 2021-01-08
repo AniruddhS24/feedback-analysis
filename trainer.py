@@ -8,6 +8,11 @@ def train_supp(savefile, num_samples, device):
     train_x, train_y, dev_x, dev_y = read_dataset('YELP', num_samples)
     train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME=savefile, device=device)
 
+def train_ext_lstmcrf(savefile, num_samples, device):
+    train_x, train_y, dev_x, dev_y = read_dataset('YELP', num_samples)
+    fsmodel = FeatureImportanceScorer('suppmodeel.pt')
+    train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME=savefile, device=device)
+
 def train_pred():
     # supmodel = FeatureImportanceScorer('suppmodel.pt')
     # extmodel = HeuristicExtractor(supmodel)
@@ -24,7 +29,7 @@ if __name__ == '__main__':
 
     savefile = sys.argv[1]
     num_samples = int(sys.argv[2])
-    train_supp(savefile, num_samples, device)
+    train_ext_lstmcrf(savefile, num_samples, device)
     # sup = FeatureImportanceScorer('suppmodel2.pt')
     # scrop = sup.get_score_features(["I absolutely hate this place and it really sucks", "I love this place so much! It is amazing!"])
     # print(scrop['attention_scores'][0])

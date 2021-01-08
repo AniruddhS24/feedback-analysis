@@ -177,11 +177,6 @@ class BiLSTMNetwork(nn.Module):
         ops = self.act2(ops)
         return ops
 
-class LSTMExtractor(Extractor):
-    def __init__(self, featscorer, net:BiLSTMNetwork):
-        super(LSTMExtractor, self).__init__(featscorer)
-        self.net = net
-
 '''
 Parameterized LSTM with a CRF layer
 https://towardsdatascience.com/implementing-a-linear-chain-conditional-random-field-crf-in-pytorch-16b0b9c4b4ea
@@ -368,14 +363,19 @@ class LSTMCRFExtractor(Extractor):
         rationale_data["rationale_avg_vec"] = rationalevecs
         return rationale_data
 
-def train_lstmcrf_model(train_x, train_y, dev_x, dev_y, FILENAME, device, fsmodel_filename):
-    net = LSTM_CRF(inp_size=769, # 768 + 1 = 769 dim input vector
-                     lstm_hid_size=256,
-                     num_layers=2,
-                     dropout=0.1)
+def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device):
+    inp_size = 769
+    lstm_hid_size = 256
+    num_layers = 2
+    dropout = 0.1
+
+    net = LSTM_CRF(inp_size=inp_size, # 768 + 1 = 769 dim input vector
+                     lstm_hid_size=lstm_hid_size,
+                     num_layers=num_layers,
+                     dropout=dropout)
     net = net.to(device)
 
-    fsmodel = FeatureImportanceScorer(model_file_name=fsmodel_filename)
+    #fsmodel = FeatureImportanceScorer(model_file_name=fsmodel_filename)
     heuristicext = HeuristicExtractor(fsmodel)
 
     # hyperparameters
@@ -386,7 +386,7 @@ def train_lstmcrf_model(train_x, train_y, dev_x, dev_y, FILENAME, device, fsmode
 
     for epoch in range(EPOCHS):
         tot_loss = 0.0
-        perm = torch.randperm(train_x.shape[0])
+        perm = torch.randperm(len(train_x))
         for i in range(batch_size, len(perm), batch_size):
             optimizer.zero_grad()
             xbatch_str = [train_x[j] for j in perm[i - batch_size:i]]
@@ -414,7 +414,8 @@ def train_lstmcrf_model(train_x, train_y, dev_x, dev_y, FILENAME, device, fsmode
                 'state_dict': net.state_dict(),
                 'epochs': epoch,
                 'batch_size': batch_size,
-                'lr': lr}
+                'lr': lr,
+                'config': {'inp_size': inp_size, 'lstm_hid_size':lstm_hid_size, 'num_layers':num_layers, 'dropout':dropout}}
             torch.save(checkpt, FILENAME[0:FILENAME.index('.')] + str(epoch) + 'epoch.pt')
 
     #acc, f1 = evaluate_ext_model(model, dev_x, dev_y, device)
@@ -422,7 +423,8 @@ def train_lstmcrf_model(train_x, train_y, dev_x, dev_y, FILENAME, device, fsmode
         'state_dict': net.state_dict(),
         'epochs': EPOCHS,
         'batch_size': batch_size,
-        'lr': lr}
+        'lr': lr,
+        'config': {'inp_size': inp_size, 'lstm_hid_size':lstm_hid_size, 'num_layers':num_layers, 'dropout':dropout}}
     torch.save(checkpt, FILENAME)
 
 # if __name__ == '__main__':

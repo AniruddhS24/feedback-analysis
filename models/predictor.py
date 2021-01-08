@@ -115,3 +115,90 @@ class BERTPredictor(Predictor):
             return pred, rationale_data["rationales"]
         else:
             return pred.argmax(dim=1), rationale_data["rationales"]
+
+def evaluate_dan_pred_model(net, extmodel, dev_x, dev_y, device):
+    print("Evaluating DAN Pred Model...")
+    net.eval()
+    # dev set accuracy
+    dev_y = torch.tensor(dev_y)
+    batch_size = min(32, len(dev_x)-1)
+    tp, tn, fp, fn = 0,0,0,0
+    for i in range(batch_size, len(dev_x), batch_size):
+        xbatch_str = dev_x[i - batch_size:i]
+        rationale_data = extmodel.extract_rationales(xbatch_str)
+
+        xbatch = torch.tensor(rationale_data["rationale_avg_vec"])
+        ybatch = dev_y[i - batch_size:i]
+        xbatch, ybatch = xbatch.to(device), ybatch.to(device)
+
+        pred_lbl = net(xbatch).argmax(dim=1)
+        for j in range(len(pred_lbl)):
+            if pred_lbl[j]==1 and ybatch[j]==1:
+                tp += 1
+            if pred_lbl[j]==1 and ybatch[j]==0:
+                fp += 1
+            if pred_lbl[j]==0 and ybatch[j]==0:
+                tn += 1
+            if pred_lbl[j]==0 and ybatch[j]==1:
+                fn += 1
+
+    acc = (tp+tn) / (tp+tn+fp+fn)
+    f1 = tp / (tp + 0.5*(fp+fn))
+    print("Dev Accuracy: {0} ({1} / {2}) \t F1 Score: {3}".format(acc * 100, tp, tp+tn+fp+fn, f1))
+    return acc, f1
+
+# expects train_x as list of strings, train_y as one-hot encoded label tensor
+def train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME, device):
+    inp_size = 768
+    hid_size = 256
+    op_size = 5
+    net = DAN(inp_size, hid_size, op_size)
+    net = net.to(device)
+
+    # hyperparameters
+    EPOCHS = 20
+    batch_size = 32
+    lr = 2e-5
+    objective = nn.NLLLoss()
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=0.001)
+
+    print("Training DAN Pred Model...")
+    net.train()
+    # training
+    for epoch in range(EPOCHS):
+        tot_loss = 0.0
+        perm = torch.randperm(len(train_x))
+        for i in range(batch_size, len(perm), batch_size):
+            optimizer.zero_grad()
+            xbatch_str = [train_x[j] for j in perm[i - batch_size:i]]
+            rationale_data = extmodel.extract_rationales(xbatch_str)
+
+            xbatch = torch.tensor(rationale_data["rationale_avg_vec"])
+            ybatch = train_y[perm[i-batch_size:i]]
+            xbatch, ybatch = xbatch.to(device), ybatch.to(device)
+            pred = net(xbatch)
+            loss = objective(pred, ybatch)
+            tot_loss += loss.item()
+            loss.backward()
+            nn.utils.clip_grad_norm_(net.parameters(), max_norm=5.0)
+            optimizer.step()
+            del loss, pred
+        print("Epoch {0}      Loss {1}".format(epoch, tot_loss))
+        if epoch%4==0:
+            acc, f1 = evaluate_dan_pred_model(net, extmodel, dev_x,dev_y, device)
+            checkpt = {
+                'state_dict': net.state_dict(),
+                'accuracy': acc*100,
+                'epochs': EPOCHS,
+                'batch_size': batch_size,
+                'lr': lr}
+            torch.save(checkpt, FILENAME[0:FILENAME.index('.')] + str(epoch) + 'epoch.pt')
+
+    acc, f1 = evaluate_dan_pred_model(net, extmodel, dev_x, dev_y, device)
+    checkpt = {
+        'state_dict': net.state_dict(),
+        'accuracy': acc*100,
+        'epochs': EPOCHS,
+        'batch_size': batch_size,
+        'lr': lr}
+    torch.save(checkpt, FILENAME)
