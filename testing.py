@@ -63,7 +63,10 @@ def compute_partition(emissions, mask, transitions):
     return torch.logsumexp(dp, dim=1)  # partition function return (batchsz,) tensor
 
 if __name__ == '__main__':
-    #main()
-    tmp = torch.tensor([1.0, 2.0])
-    ls = [tmp[0], tmp[1]]
-    print(torch.tensor(ls))
+    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+    tkn = tokenizer(text=["sample text testing itall"],
+                     add_special_tokens=True,
+                     padding='max_length',
+                     truncation='only_first',
+                     return_attention_mask=True,
+                     return_tensors='pt')

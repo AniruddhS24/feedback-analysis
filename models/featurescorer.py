@@ -10,7 +10,7 @@ class SuppModel(nn.Module):
                                                       output_attentions=True)  # TODO: change to BertConfig.from_json_file('./tf_model/my_tf_model_config.json')
         self.bert = AutoModel.from_pretrained(bert_model_type, config=self.bert_config)
         self.dpout = nn.Dropout(p=0.1) # regularisation
-        self.dense1 = nn.Linear(self.bert.trainingconfig.hidden_size, 50)
+        self.dense1 = nn.Linear(self.bert_config.hidden_size, 50)
         self.act1 = nn.ReLU()
         self.dense2 = nn.Linear(50, 2)
         self.softmx = nn.LogSoftmax(dim=1)
