@@ -3,6 +3,14 @@ import torch.nn as nn
 from transformers import AutoTokenizer, AutoModel, AutoConfig
 from models.extractor import *
 
+class Predictor(object):
+    def __init__(self, extractor):
+        self.extractor = extractor
+
+    def predict(self, x, soft=False):
+        raise Exception("Cannot instantiate Extractor base class. Please call one of "
+                        + ", ".join([cls.__name__ for cls in Predictor.__subclasses__()]))
+
 '''
 Really this is a DAN which averages BERT embedding outputs... may not be a good choice
 Consider making another BERT module where only rationales are passed and binary classification fine-tuning
@@ -34,13 +42,36 @@ class DAN(nn.Module):
         x = self.act2(x)
         return x
 
+class DANPredictor(Predictor):
+    def __init__(self, extractor, checkpoint):
+        super(DANPredictor, self).__init__(extractor)
+        self.net = self.load_model(checkpoint)
+
+    def load_model(self, checkpt):
+        try:
+            net = DAN(inp_size=checkpt["config"]["inp_size"],
+                           hid_size=checkpt["config"]["hid_size"],
+                           op_size=checkpt["config"]["op_size"])
+            net.load_state_dict(checkpt['state_dict'])
+        except:
+            raise Exception("Error! Model checkpoint file not found, or file not saved correctly.")
+        return net
+
+    def predict(self, x, soft=False):
+        rationale_data = self.extractor.extract_rationales(x)
+        pred = self.net.forward(self.net.process_input(rationale_data["rationale_avg_vec"]))
+        if soft:
+            return pred, rationale_data["rationales"]
+        else:
+            return pred.argmax(dim=1), rationale_data["rationales"]
+
 class BERTPred(nn.Module):
     def __init__(self, bert_model_type, freeze=False):
         super(BERTPred, self).__init__()
 
         self.model_name = bert_model_type
         self.bert_config = AutoConfig.from_pretrained(bert_model_type,
-                                                      output_attentions=True)  # TODO: change to BertConfig.from_json_file('./tf_model/my_tf_model_config.json')
+                                                      output_attentions=True)
         self.bert = AutoModel.from_pretrained(bert_model_type, config=self.bert_config)
         self.dpout = nn.Dropout(p=0.1)  # regularisation
         self.dense1 = nn.Linear(self.bert.trainingconfig.hidden_size, 50)
@@ -79,34 +110,19 @@ class BERTPred(nn.Module):
         # output is of shape (batchsize, 2)
         return op
 
-class Predictor(object):
-    def __init__(self, net, extractor):
-        self.net = net
-        self.extractor = extractor
-
-    def predict(self, x, soft=False):
-        raise Exception("Cannot instantiate Extractor base class. Please call one of "
-                        + ", ".join([cls.__name__ for cls in Predictor.__subclasses__()]))
-
-class DANPredictor(Predictor):
-    def __init__(self, net, extractor):
-        if not isinstance(self.net, DAN):
-            raise Exception("DANPredictor only compatible for DAN network")
-        super().__init__(net, extractor)
-
-    def predict(self, x, soft=False):
-        rationale_data = self.extractor.extract_rationales(x)
-        pred = self.net.forward(self.net.process_input(rationale_data["rationale_avg_vec"]))
-        if soft:
-            return pred, rationale_data["rationales"]
-        else:
-            return pred.argmax(dim=1), rationale_data["rationales"]
-
 class BERTPredictor(Predictor):
-    def __init__(self, net, extractor):
-        if not isinstance(self.net, BERTPred):
-            raise Exception("BERTPredictor only compatible for BERTPred network")
-        super().__init__(net, extractor)
+    def __init__(self, extractor, checkpoint):
+        super(BERTPredictor, self).__init__(extractor)
+        self.net = self.load_model(checkpoint)
+
+    def load_model(self, checkpt):
+        try:
+            net = BERTPred(bert_model_type=checkpt["config"]["bert_model_type"],
+                           freeze=checkpt["config"]["freeze"])
+            net.load_state_dict(checkpt['state_dict'])
+        except:
+            raise Exception("Error! Model checkpoint file not found, or file not saved correctly.")
+        return net
 
     def predict(self, x, soft=False):
         rationale_data = self.extractor.extract_rationales(x)
@@ -195,3 +211,15 @@ def train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME, dev
         'accuracy': acc*100,
         'config': config}
     torch.save(checkpt, FILENAME)
+
+def load_predictor_model(model_file_path, extractor):
+    checkpoint = torch.load(model_file_path)
+    model_name = checkpoint['config']['model_name']
+
+    if model_name == 'danpred':
+        return DANPredictor(extractor=extractor, checkpoint=checkpoint)
+    if model_name == 'bertpred':
+        return BERTPredictor(extractor=extractor, checkpoint=checkpoint)
+
+    del checkpoint
+    raise Exception("Error loading model")

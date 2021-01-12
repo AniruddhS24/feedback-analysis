@@ -1,11 +1,18 @@
 suppmodel:
-  model_name: 'bert-base-uncased'
+  model_name: 'suppmodel'
+  bert_model_name: 'bert-base-uncased'
   freeze: False
   EPOCHS: 20
   batch_size: 32
   lr: 2e-5
   l2reg: 0.001
+heuristicext:
+  model_name: 'heuristic_ext'
+  rationalelengthprop: 0.15
+  num_rationales: 3
+  rat_distance: 0.05
 lstmcrf:
+  model_name: 'lstm_crf'
   inp_size: 769  # 768 + 1 = 769 dim input vector
   lstm_hid_size: 256
   num_layers: 2
@@ -14,7 +21,16 @@ lstmcrf:
   batch_size: 32
   lr: 2e-5
   l2reg: 0.001
+bertpred:
+  model_name: 'bertpred'
+  bert_model_name: 'bert-base-uncased'
+  freeze: False
+  EPOCHS: 20
+  batch_size: 32
+  lr: 2e-5
+  l2reg: 0.001
 danpred:
+  model_name: 'danpred'
   inp_size: 768
   hid_size: 256
   op_size: 5

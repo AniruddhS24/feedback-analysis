@@ -15,11 +15,11 @@ class Extractor(object):
 Extractor solely based on heuristics, no model
 '''
 class HeuristicExtractor(Extractor):
-    def __init__(self, featscorer, rationalelengthprop=0.1, num_rationales=3, rat_distance=0.05):
+    def __init__(self, featscorer, checkpoint):
         super(HeuristicExtractor, self).__init__(featscorer)
-        self.rationalelengthprop = rationalelengthprop
-        self.num_rationales = num_rationales
-        self.rat_distance = rat_distance
+        self.rationalelengthprop = checkpoint['rationalelengthprop']
+        self.num_rationales = checkpoint['num_rationales']
+        self.rat_distance = checkpoint['rat_distance']
 
     def extract_rationales(self, x):
         scoreop = self.featscorer.get_score_features(x)
@@ -316,14 +316,13 @@ class LSTM_CRF(nn.Module):
         return scores, taggedseq
 
 class LSTMCRFExtractor(Extractor):
-    def __init__(self, featscorer, model_file_path):
+    def __init__(self, featscorer, checkpoint):
         super(LSTMCRFExtractor, self).__init__(featscorer)
         self.featscorer = featscorer
-        self.net = self.load_model(filename=model_file_path)
+        self.net = self.load_model(checkpoint)
 
-    def load_model(self, filename):
+    def load_model(self, checkpt):
         try:
-            checkpt = torch.load(filename)
             net = LSTM_CRF(inp_size=checkpt["config"]["inp_size"],
                            lstm_hid_size=checkpt["config"]["lstm_hid_size"],
                            num_layers=checkpt["config"]["num_layers"],
@@ -364,6 +363,9 @@ class LSTMCRFExtractor(Extractor):
         rationale_data["binary_mask"] = preds
         return rationale_data
 
+def train_heuristic_model(FILENAME, config):
+    torch.save(config, FILENAME)
+
 def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device, config):
     net = LSTM_CRF(inp_size=config['inp_size'],
                      lstm_hid_size=config['lstm_hid_size'],
@@ -371,7 +373,9 @@ def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device, config):
                      dropout=config['dropout'])
     net = net.to(device)
 
-    heuristicext = HeuristicExtractor(fsmodel)
+    heuristicext = HeuristicExtractor(fsmodel, checkpoint={'rationalelengthprop': 0.15,
+                                                            'num_rationales': 3,
+                                                            'rat_distance': 0.05})
 
     # hyperparameters
     EPOCHS = config['EPOCHS']
@@ -407,9 +411,6 @@ def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device, config):
             #acc, f1 = evaluate_ext_model(model, dev_x, dev_y, device)
             checkpt = {
                 'state_dict': net.state_dict(),
-                'epochs': epoch,
-                'batch_size': batch_size,
-                'lr': lr,
                 'config': config}
             torch.save(checkpt, FILENAME[0:FILENAME.index('.')] + str(epoch) + 'epoch.pt')
 
@@ -427,3 +428,15 @@ def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device, config):
 #     # lf = CustomLoss()
 #     # ls = lf.forward(ops=torch.tensor([1.0,2.0,3.0,4.0,5.0], requires_grad=True))
 #     ls.backward()
+
+def load_extractor_model(model_file_path, featscorer):
+    checkpoint = torch.load(model_file_path)
+    model_name = checkpoint['config']['model_name']
+
+    if model_name == 'heuristicext':
+        return HeuristicExtractor(featscorer=featscorer, checkpoint=checkpoint)
+    if model_name == 'lstmcrf':
+        return LSTMCRFExtractor(featscorer=featscorer, checkpoint=checkpoint)
+
+    del checkpoint
+    raise Exception("Error loading model")

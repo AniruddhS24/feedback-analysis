@@ -21,7 +21,8 @@ def _parse_args():
     parser.add_argument('--dataset', type=str, default='YELP',
                         help='training dataset to use (YELP or TWITTER)')
     parser.add_argument('--num_samples', type=int, default=1000, help='number of training samples')
-    parser.add_argument('--auxmodelsavepath', type=str, default=None, help='auxiliary model param file save path (ext or supp)')
+    parser.add_argument('--auxfeatscorer', type=str, default=None, help='auxiliary model param file save path')
+    parser.add_argument('--auxextractor', type=str, default=None, help='auxiliary model param file save path')
     args = parser.parse_args()
     return args
 
@@ -39,23 +40,22 @@ if __name__ == '__main__':
     datasetname = args.dataset
     savefile = args.savepath
     num_samples = args.num_samples
-    auxpath = args.auxmodelsavepath
+    auxfs = args.auxfeatscorer
+    auxext = args.auxextractor
 
     with open(r'config.yaml') as f:
         trainingconfig = yaml.full_load(f)
 
-    if modelname == 'suppmodel':
-        train_x, train_y, dev_x, dev_y = read_dataset(datasetname, num_samples)
-        train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME=savefile, device=device, config=trainingconfig[modelname])
-    if modelname == 'lstmcrf':
-        train_x, train_y, dev_x, dev_y = read_dataset(datasetname, num_samples)
-        fsmodel = FeatureImportanceScorer(auxpath)
-        train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME=savefile, device=device, config=trainingconfig[modelname])
+    train_x, train_y, dev_x, dev_y = read_dataset(datasetname, num_samples)
 
-    # sup = FeatureImportanceScorer('suppmodel2.pt')
-    # scrop = sup.get_score_features(["I absolutely hate this place and it really sucks", "I love this place so much! It is amazing!"])
-    # print(scrop['attention_scores'][0])
-    # print(scrop['attention_scores'][1])
-    # extmodel = HeuristicExtractor(sup)
-    # rationales, ratvecs = extmodel.contiguous_discretize(["I absolutely hate this place and it really sucks", "I love this place so much! It is amazing!"])
-    # print(rationales)
+    if modelname == 'suppmodel':
+        train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME=savefile, device=device, config=trainingconfig[modelname])
+    if modelname == 'heuristic':
+        train_heuristic_model(FILENAME=savefile, config=trainingconfig[modelname])
+    if modelname == 'lstmcrf':
+        fsmodel = load_featurescorer_model(auxfs) #TODO: edit this checkpoint file to contain new fields, retraining too expensive
+        train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME=savefile, device=device, config=trainingconfig[modelname])
+    if modelname == 'danpred':
+        fsmodel = load_featurescorer_model(auxfs)
+        extmodel = load_extractor_model(fsmodel, auxext)
+        train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME=savefile, device=device, config=trainingconfig[modelname])

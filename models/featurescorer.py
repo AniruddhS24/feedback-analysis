@@ -49,17 +49,14 @@ class SuppModel(nn.Module):
         return op
 
 class FeatureImportanceScorer:
-    '''
-    Takes as input a trained SuppModel
-    '''
-    def __init__(self, model_file_path):
-        self.net = self.load_model(model_file_path)
+
+    def __init__(self, checkpoint):
+        self.net = self.load_model(checkpoint)
         self.tokenizer = AutoTokenizer.from_pretrained(self.net.model_name)
 
-    def load_model(self, filename):
+    def load_model(self, checkpt):
         try:
-            checkpt = torch.load(filename)
-            net = SuppModel(bert_model_type='bert-base-uncased', freeze=False)
+            net = SuppModel(bert_model_type=checkpt['config']['bert_model_name'], freeze=False)
             net.load_state_dict(checkpt['state_dict'])
         except:
             raise Exception("Error! Model checkpoint file not found, or file not saved correctly.")
@@ -175,4 +172,12 @@ def train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME, device, config):
         'config': config}
     torch.save(checkpt, FILENAME)
 
+def load_featurescorer_model(model_file_path):
+    checkpoint = torch.load(model_file_path)
+    model_name = checkpoint['config']['model_name']
 
+    if model_name == 'suppmodel':
+        return FeatureImportanceScorer(checkpoint=checkpoint)
+
+    del checkpoint
+    raise Exception("Error loading model")
