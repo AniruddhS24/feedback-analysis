@@ -90,5 +90,5 @@ sentiment task. Large language models so training isn't as fast.
 - create Chrome extension for this product (can apply on Google sheets/Google Form responses)
 
 ## References
-[1] Jain, Sarthak & Wiegreffe, Sarah & Pinter, Yuval & Wallace, Byron. (2020). Learning to Faithfully Rationalize by Construction. 4459-4473. 10.18653/v1/2020.acl-main.409. 
+[1] Jain, Sarthak & Wiegreffe, Sarah & Pinter, Yuval & Wallace, Byron. (2020). Learning to Faithfully Rationalize by Construction. 4459-4473. 10.18653/v1/2020.acl-main.409.\
 [2] Tao Lei and Regina Barzilay and Tommi S. Jaakkola (2016). Rationalizing Neural PredictionsCoRR, abs/1606.04155.
