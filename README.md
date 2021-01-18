@@ -41,6 +41,7 @@ model is trained end-to-end on the binary sentiment prediction task.
 model are used in conjunction with the full-text sentiment prediction in a scoring function to evaluate various
 emotional elements of the text.
 ### Feature Scorer
+![Alt text](suppmodelpic.png?raw=true "Support Model")
 Pretrained BERT is fine-tuned on the binary sentiment classification task. The type of sentiment classification
 does not matter here - binary sentiment was used due to the availability of high-quality training examples.
 The goal is to simply shift model parameters
