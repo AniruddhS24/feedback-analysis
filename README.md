@@ -31,7 +31,7 @@ Some preprocessing is done (for messy input texts from Twitter dataset, for inst
 tokenized or heavily filtered. 
 
 ## Models
-<img src="pipelineimg.png" width="75%">
+<img src="pipelineimg.png" width="85%">
 
 The general pipeline is:
 1. Text is preprocessed, then tokenized appropriately based on model being used
@@ -54,7 +54,7 @@ self-attention, a representation of the entire input is often given in reference
 final rationales. However, if this model is trained end-to-end on the task of interest,
 we remove the added complexity of joint training with an extractor module.
 ### Extractor
-<img src="extmodelimg.png" width="60%">
+<img src="extmodelimg.png" width="70%">
 
 The separate extractor model uses the feature importance scores derived above to generate a 
 binary mask over the input tokens. In other words, each token is either included or excluded
