@@ -31,6 +31,8 @@ Some preprocessing is done (for messy input texts from Twitter dataset, for inst
 tokenized or heavily filtered. 
 
 ## Models
+<img src="pipelineimg.png" width="60%">
+
 The general pipeline is:
 1. Text is preprocessed, then tokenized appropriately based on model being used
 2. `./models/featurescorer.py` A **feature scoring model** assigns feature importance scores (i.e. \[CLS\] attention) to all input tokens. This 
@@ -41,7 +43,7 @@ model is trained end-to-end on the binary sentiment prediction task.
 model are used in conjunction with the full-text sentiment prediction in a scoring function to evaluate various
 emotional elements of the text.
 ### Feature Scorer
-<img src="suppmodelpic.png" width="60%">
+<img src="suppmodelimg.png" width="60%">
 
 Pretrained BERT is fine-tuned on the binary sentiment classification task. The type of sentiment classification
 does not matter here - binary sentiment was used due to the availability of high-quality training examples.
@@ -52,6 +54,8 @@ self-attention, a representation of the entire input is often given in reference
 final rationales. However, if this model is trained end-to-end on the task of interest,
 we remove the added complexity of joint training with an extractor module.
 ### Extractor
+<img src="extmodelimg.png" width="60%">
+
 The separate extractor model uses the feature importance scores derived above to generate a 
 binary mask over the input tokens. In other words, each token is either included or excluded
 from being part of the "rationale". Ideally, these masks should be as concise as possible.
@@ -68,6 +72,8 @@ Models developed:
 - BiLSTM + CRF: Same as BiLSTM trained on outputs of Heuristic model, but with a Conditional
 Random Field (CRF) layer attached. This results in more coherent rationale selections.
 ### Predictor
+<img src="predimg.png" width="60%">
+
 The predictor model analyzes sentiment for each extracted rationale for a given input text. This model is trained 
 on multi-class sentiment analysis from the SST-5 dataset.
 Models developed:
