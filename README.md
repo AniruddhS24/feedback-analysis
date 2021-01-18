@@ -41,14 +41,41 @@ model is trained end-to-end on the binary sentiment prediction task.
 model are used in conjunction with the full-text sentiment prediction in a scoring function to evaluate various
 emotional elements of the text.
 ### Feature Scorer
-todo
+Pretrained BERT is fine-tuned on the binary sentiment classification task. The type of sentiment classification
+does not matter here - binary sentiment was used due to the availability of high-quality training examples.
+The goal is to simply shift model parameters
+such that spans of text that strongly reflect sentiment are heavily weighted. Since BERT uses
+self-attention, a representation of the entire input is often given in reference to the \[ClS\] token, so
+\[CLS\] attention scores in the second-to-last BERT layer are used as feature importance scores. Other feature scoring methods are also viable, but BERT attention seems to produce the best
+final rationales. However, if this model is trained end-to-end on the task of interest,
+we remove the added complexity of joint training with an extractor module.
 ### Extractor
-todo
+The separate extractor model uses the feature importance scores derived above to generate a 
+binary mask over the input tokens. In other words, each token is either included or excluded
+from being part of the "rationale". Ideally, these masks should be as concise as possible.
+
+Models developed:
+- Heuristic: Simply selects the top few contiguous sequences of tokens with the 
+  highest attention sum. Ensures contiguous pieces are not too close to each other.
+- BiLSTM: Takes concatenated BERT embedding + attention score input vectors. Outputs 
+  binary probabilities (select/don't select) for each token. 
+ Training: 
+  - Supervise training by using output of Heuristic model (1/0 binary mask) as the target. Objective is NLL loss.
+  - Train using reinforcement-learning type framework, with a loss function defined by contiguity, conciseness,
+    and decaying attention sum terms (hyperparameter search is very hard)
+- BiLSTM + CRF: Same as BiLSTM trained on outputs of Heuristic model, but with a Conditional
+Random Field (CRF) layer attached. This results in more coherent rationale selections.
 ### Predictor
-todo
+The predictor model analyzes sentiment for each extracted rationale for a given input text. This model is trained 
+on multi-class sentiment analysis from the SST-5 dataset.
+Models developed:
+- DAN Pred: A simple deep averaging network which averages BERT embeddings of rationales. Works
+decently and is fast to train.
+- BERT Pred: Encodes rationales once again through pretrained BERT, fine-tuned on more advanced
+sentiment task. Large language models so training isn't as fast.
 
 ## TODO
-- write processing for SST data, also write function to process text larger than 512 tokens (currently truncated) 
+- (DONE) write processing for SST data, also write function to process text larger than 512 tokens (currently truncated) 
 - finalize the scoring function, test model on Amazon dataset
 - see if model can be trained on other sentiment-based tasks (i.e. sensing urgency or sarcasm), or transfer learning
 - package code and set up beta version of web app with AWS

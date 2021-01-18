@@ -70,3 +70,4 @@ if __name__ == '__main__':
                      truncation='only_first',
                      return_attention_mask=True,
                      return_tensors='pt')
+    print(tkn["input_ids"])
