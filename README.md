@@ -31,7 +31,7 @@ Some preprocessing is done (for messy input texts from Twitter dataset, for inst
 tokenized or heavily filtered. 
 
 ## Models
-<img src="pipelineimg.png" width="60%">
+<img src="pipelineimg.png" width="75%">
 
 The general pipeline is:
 1. Text is preprocessed, then tokenized appropriately based on model being used
@@ -72,7 +72,7 @@ Models developed:
 - BiLSTM + CRF: Same as BiLSTM trained on outputs of Heuristic model, but with a Conditional
 Random Field (CRF) layer attached. This results in more coherent rationale selections.
 ### Predictor
-<img src="predimg.png" width="60%">
+<img src="predimg.png" width="45%">
 
 The predictor model analyzes sentiment for each extracted rationale for a given input text. This model is trained 
 on multi-class sentiment analysis from the SST-5 dataset.
