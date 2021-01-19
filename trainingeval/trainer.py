@@ -11,7 +11,7 @@ from models.predictor import *
 sys.path.pop(0)
 
 def _parse_args():
-    with open(r'trainingeval/config.yaml') as f:
+    with open(r'config.yaml') as f:
         trainingconfig = yaml.full_load(f)
 
     parser = argparse.ArgumentParser(description='TRAINER')
