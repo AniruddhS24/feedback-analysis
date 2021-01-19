@@ -1,3 +1,4 @@
+import sys
 import pickle
 import torch
 import torch.nn as nn
@@ -14,7 +15,7 @@ class FeedbackModel:
         return rationale_data["rationales"]
 
 if __name__ == '__main__':
-    #fbmd = FeedbackModel()
-    #pickle.dump(fbmd, open('mymodel.pickle', 'wb'))
-    item = pickle.load(open('mymodel.pickle', 'rb'))
-    print(item.predict("In many settings it is important for one to be able to understand why a model made a particular prediction. In NLP this often entails extracting snippets of an input text responsible"))
+    inputstr = sys.argv[1]
+    fs = load_featurescorer_model('saved/suppmodeelnew.pt')
+    model = load_extractor_model('saved/lstmcrfmodel.pt', fs)
+    print(model.extract_rationales([inputstr])["rationales"])

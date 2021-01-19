@@ -344,12 +344,12 @@ class LSTMCRFExtractor(Extractor):
         rationalevecs = []
 
         self.net.eval()
-        lstm_inp = torch.cat((bertops, attnscores), dim=2)
+        lstm_inp = torch.cat((bertops, attnscores.unsqueeze(2)), dim=2)
         scores, preds = self.net.tag_sequence(lstm_inp, mask=scoreop["tokenizer"]["attention_mask"]) # (batchsz, seqlen)
         for batch_item in range(0, bertops.shape[0]):
             i = 0
             while i < maxcontiglen[batch_item].item():
-                if i==1:
+                if preds[batch_item][i]==1:
                     j = i
                     while j < maxcontiglen[batch_item].item() and preds[batch_item][j]==1:
                         j += 1
@@ -432,10 +432,9 @@ def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device, config):
 def load_extractor_model(model_file_path, featscorer):
     checkpoint = torch.load(model_file_path)
     model_name = checkpoint['config']['model_name']
-
     if model_name == 'heuristicext':
         return HeuristicExtractor(featscorer=featscorer, checkpoint=checkpoint)
-    if model_name == 'lstmcrf':
+    if model_name == 'lstm_crf':
         return LSTMCRFExtractor(featscorer=featscorer, checkpoint=checkpoint)
 
     del checkpoint
