@@ -38,7 +38,7 @@ def read_twitter(path, num_samples, min_ex_length):
     return split_train_dev(data_x, data_y)
 
 def read_yelp(path, num_samples, min_ex_length):
-    db = pd.read_csv(path, header=None)
+    db = pd.read_csv(path, header=None, error_bad_lines=False, engine="python")
     db.columns = ['target', 'text']
     data_x = []
     data_y = []

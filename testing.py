@@ -63,11 +63,16 @@ def compute_partition(emissions, mask, transitions):
     return torch.logsumexp(dp, dim=1)  # partition function return (batchsz,) tensor
 
 if __name__ == '__main__':
-    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-    tkn = tokenizer(text=["sample text testing itall"],
-                     add_special_tokens=True,
-                     padding='max_length',
-                     truncation='only_first',
-                     return_attention_mask=True,
-                     return_tensors='pt')
-    print(tkn["input_ids"])
+    mydata = torch.load('saved/suppmodeel.pt')
+    print(mydata.keys())
+    newconfig = {}
+    newconfig['state_dict'] = mydata['state_dict']
+    newconfig['accuracy'] = mydata['accuracy']
+    newconfig['config'] = {'model_name': 'suppmodel',
+                        'bert_model_name': 'bert-base-uncased',
+                        'freeze': False,
+                        'EPOCHS': 20,
+                        'batch_size': 32,
+  'lr': 2e-5,
+  'l2reg': 0.001}
+    torch.save(newconfig, 'saved/suppmodeelnew.pt')

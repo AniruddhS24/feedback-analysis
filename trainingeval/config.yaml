@@ -4,7 +4,7 @@ suppmodel:
   freeze: False
   EPOCHS: 20
   batch_size: 32
-  lr: 2e-5
+  lr: 0.00002
   l2reg: 0.001
 heuristicext:
   model_name: 'heuristic_ext'
@@ -19,7 +19,7 @@ lstmcrf:
   dropout: 0.1
   EPOCHS: 20
   batch_size: 32
-  lr: 2e-5
+  lr: 0.00002
   l2reg: 0.001
 bertpred:
   model_name: 'bertpred'
@@ -27,7 +27,7 @@ bertpred:
   freeze: False
   EPOCHS: 20
   batch_size: 32
-  lr: 2e-5
+  lr: 0.00002
   l2reg: 0.001
 danpred:
   model_name: 'danpred'
@@ -36,5 +36,5 @@ danpred:
   op_size: 5
   EPOCHS: 20
   batch_size: 32
-  lr: 2e-5
+  lr: 0.00002
   l2reg: 0.001

@@ -11,7 +11,7 @@ from models.predictor import *
 sys.path.pop(0)
 
 def _parse_args():
-    with open(r'config.yaml') as f:
+    with open(r'trainingeval/config.yaml') as f:
         trainingconfig = yaml.full_load(f)
 
     parser = argparse.ArgumentParser(description='TRAINER')
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     auxfs = args.auxfeatscorer
     auxext = args.auxextractor
 
-    with open(r'config.yaml') as f:
+    with open(r'trainingeval/config.yaml') as f:
         trainingconfig = yaml.full_load(f)
 
     train_x, train_y, dev_x, dev_y = read_dataset(datasetname, num_samples)
