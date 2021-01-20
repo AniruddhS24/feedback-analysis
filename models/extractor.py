@@ -432,7 +432,7 @@ def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device, config):
 def load_extractor_model(model_file_path, featscorer):
     checkpoint = torch.load(model_file_path)
     model_name = checkpoint['config']['model_name']
-    if model_name == 'heuristicext':
+    if model_name == 'heuristic_ext':
         return HeuristicExtractor(featscorer=featscorer, checkpoint=checkpoint)
     if model_name == 'lstm_crf':
         return LSTMCRFExtractor(featscorer=featscorer, checkpoint=checkpoint)

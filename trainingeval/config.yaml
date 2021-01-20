@@ -6,12 +6,12 @@ suppmodel:
   batch_size: 32
   lr: 0.00002
   l2reg: 0.001
-heuristicext:
+heuristic_ext:
   model_name: 'heuristic_ext'
   rationalelengthprop: 0.15
   num_rationales: 3
   rat_distance: 0.05
-lstmcrf:
+lstm_crf:
   model_name: 'lstm_crf'
   inp_size: 769  # 768 + 1 = 769 dim input vector
   lstm_hid_size: 256
