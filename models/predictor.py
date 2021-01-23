@@ -185,7 +185,6 @@ def train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME, dev
             optimizer.zero_grad()
             xbatch_str = [train_x[j] for j in perm[i - batch_size:i]]
             rationale_data = extmodel.extract_rationales(xbatch_str)
-
             xbatch = torch.tensor(rationale_data["rationale_avg_vec"])
             ybatch = train_y[perm[i-batch_size:i]]
             xbatch, ybatch = xbatch.to(device), ybatch.to(device)
@@ -195,7 +194,7 @@ def train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME, dev
             loss.backward()
             nn.utils.clip_grad_norm_(net.parameters(), max_norm=5.0)
             optimizer.step()
-            del loss, pred
+            del loss, pred, rationale_data
         print("Epoch {0}      Loss {1}".format(epoch, tot_loss))
         if epoch%4==0:
             acc, f1 = evaluate_dan_pred_model(net, extmodel, dev_x,dev_y, device)

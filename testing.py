@@ -1,5 +1,6 @@
 from models.featurescorer import *
 from models.extractor import *
+from models.predictor import *
 
 def main():
     fts = FeatureImportanceScorer('suppmodeel.pt')
@@ -78,5 +79,4 @@ if __name__ == '__main__':
   #  torch.save(newconfig, 'saved/suppmodeelnew.pt')
   mymodel = load_featurescorer_model('saved/suppmodeelnew.pt')
   rlmodel = load_extractor_model('saved/heuristicext.pt', mymodel)
-
 
