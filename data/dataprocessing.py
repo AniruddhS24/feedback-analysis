@@ -8,11 +8,11 @@ import re
 
 def read_dataset(dataset, num_samples=10000, min_ex_length=100):
     if dataset == 'TWITTER':
-        return read_twitter(path='data/twitterreviews.csv', num_samples=num_samples, min_ex_length=min_ex_length)
+        return read_twitter(path='data/datasets/twitterreviews.csv', num_samples=num_samples, min_ex_length=min_ex_length)
     if dataset == 'YELP':
-        return read_yelp(path='data/yelpreviews.csv', num_samples=num_samples, min_ex_length=min_ex_length)
+        return read_yelp(path='data/datasets/yelpreviews.csv', num_samples=num_samples, min_ex_length=min_ex_length)
     if dataset == 'SST':
-        return read_sst(path='data/stanfordSentimentTreebank', num_samples=num_samples, min_ex_length=min_ex_length)
+        return read_sst(path='data/datasets/stanfordSentimentTreebank', num_samples=num_samples, min_ex_length=min_ex_length)
 
 def read_twitter(path, num_samples, min_ex_length):
     db = pd.read_csv(path, encoding='latin-1', header=None)
