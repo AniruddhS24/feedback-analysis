@@ -20,7 +20,7 @@ def _parse_args():
                         help='file path to save model state dict, set up as saved/[filename].pt')
     parser.add_argument('--dataset', type=str, default='YELP',
                         help='training dataset to use (YELP or TWITTER)')
-    parser.add_argument('--num_samples', type=int, default=1000, help='number of training samples')
+    parser.add_argument('--num_samples', type=int, default=100, help='number of training samples')
     parser.add_argument('--auxfeatscorer', type=str, default='none', help='auxiliary model param file save path')
     parser.add_argument('--auxextractor', type=str, default='none', help='auxiliary model param file save path')
     args = parser.parse_args()

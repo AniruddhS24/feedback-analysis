@@ -17,9 +17,9 @@ Extractor solely based on heuristics, no model
 class HeuristicExtractor(Extractor):
     def __init__(self, featscorer, checkpoint):
         super(HeuristicExtractor, self).__init__(featscorer)
-        self.rationalelengthprop = checkpoint['rationalelengthprop']
-        self.num_rationales = checkpoint['num_rationales']
-        self.rat_distance = checkpoint['rat_distance']
+        self.rationalelengthprop = checkpoint['config']['rationalelengthprop']
+        self.num_rationales = checkpoint['config']['num_rationales']
+        self.rat_distance = checkpoint['config']['rat_distance']
 
     def extract_rationales(self, x):
         scoreop = self.featscorer.get_score_features(x)
@@ -364,7 +364,9 @@ class LSTMCRFExtractor(Extractor):
         return rationale_data
 
 def train_heuristic_model(FILENAME, config):
-    torch.save(config, FILENAME)
+    checkpt = {}
+    checkpt['config'] = config
+    torch.save(checkpt, FILENAME)
 
 def train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME, device, config):
     net = LSTM_CRF(inp_size=config['inp_size'],
