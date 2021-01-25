@@ -36,7 +36,7 @@ class HeuristicExtractor(Extractor):
         for batch_item in range(0,bertops.shape[0]):
             stidxs = set()
             sentlen = maxcontiglen[batch_item].item()
-            ratlen = round(sentlen * self.rationalelengthprop)
+            ratlen = max(1, round(sentlen * self.rationalelengthprop))
             for ridx in range(self.num_rationales):
                 stidx, maxsum = 0, 0
                 for i in range(1, sentlen-1-ratlen):
