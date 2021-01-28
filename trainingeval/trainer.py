@@ -50,12 +50,14 @@ if __name__ == '__main__':
 
     if modelname == 'suppmodel':
         train_supp_model(train_x, train_y, dev_x, dev_y, FILENAME=savefile, device=device, config=trainingconfig[modelname])
-    if modelname == 'heuristic_ext':
+    elif modelname == 'heuristic_ext':
         train_heuristic_model(FILENAME=savefile, config=trainingconfig[modelname])
-    if modelname == 'lstm_crf':
+    elif modelname == 'lstm_crf':
         fsmodel = load_featurescorer_model(auxfs) #TODO: edit this checkpoint file to contain new fields, retraining too expensive
         train_lstmcrf_model(train_x, dev_x, fsmodel, FILENAME=savefile, device=device, config=trainingconfig[modelname])
-    if modelname == 'danpred':
+    elif modelname == 'danpred':
         fsmodel = load_featurescorer_model(auxfs)
         extmodel = load_extractor_model(auxext, fsmodel)
         train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME=savefile, device=device, config=trainingconfig[modelname])
+    else:
+        raise Exception("Model training not supported yet")

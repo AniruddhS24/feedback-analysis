@@ -66,9 +66,9 @@ class HeuristicExtractor(Extractor):
                 if rel_dist/sentlen >= self.rat_distance:
                     stidxs.add(stidx)
                     # otherwise we just want final BERT hidden states, so input ids not needed
-                    rationalevecs.append((batch_item, torch.mean(bertops[batch_item, stidx:stidx+ratlen, :], dim=0), maxsum.item()))
+                    rationalevecs.append((batch_item, torch.mean(bertops[batch_item, stidx:stidx+ratlen, :], dim=0), maxsum))
                     #rationales.append([self.featscorer.decode_inputids(inpids[batch_item, x]) for x in range(stidx, stidx+ratlen)])
-                    rationales.append((batch_item, self.featscorer.decode_inputids(inpids[batch_item, stidx:stidx+ratlen]), maxsum.item()))
+                    rationales.append((batch_item, self.featscorer.decode_inputids(inpids[batch_item, stidx:stidx+ratlen]), maxsum))
                     binarymask[batch_item, stidx:stidx+ratlen] = 1
 
         rationale_data["rationales"] = rationales

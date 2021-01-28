@@ -21,7 +21,8 @@ def _parse_args():
     parser.add_argument('--dataset', type=str, default='YELP',
                         help='dev dataset to use')
     parser.add_argument('--num_samples', type=int, default=1000, help='number of dev samples')
-    parser.add_argument('--auxmodelsavepath', type=str, default=None, help='auxiliary model param file save path (ext or supp)')
+    parser.add_argument('--auxfeatscorer', type=str, default='none', help='auxiliary model param file save path')
+    parser.add_argument('--auxextractor', type=str, default='none', help='auxiliary model param file save path')
     args = parser.parse_args()
     return args
 
@@ -39,11 +40,18 @@ if __name__ == '__main__':
     datasetname = args.dataset
     savefile = args.savepath
     num_samples = args.num_samples
-    auxpath = args.auxmodelsavepath
+    auxfs = args.auxfeatscorer
+    auxext = args.auxextractor
+
+    train_x, train_y, dev_x, dev_y = read_dataset(datasetname, num_samples)
 
     if modelname == 'suppmodel':
-        train_x, train_y, dev_x, dev_y = read_dataset(datasetname, num_samples)
-        model = FeatureImportanceScorer(model_file_path=savefile)
+        model = load_featurescorer_model(model_file_path=savefile)
         evaluate_supp_model(model.net, model.tokenizer, dev_x, dev_y, device=device)
+    if modelname == 'danpred':
+        fsmodel = load_featurescorer_model(model_file_path=auxfs)
+        extmodel = load_extractor_model(model_file_path=auxext, featscorer=fsmodel)
+        model = load_predictor_model(model_file_path=savefile, extractor=extmodel)
+        evaluate_dan_pred_model(model.net, model.extractor, dev_x, dev_y, device=device)
     else:
         raise Exception("Model evaluation not supported yet")

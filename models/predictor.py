@@ -52,8 +52,14 @@ class DANPredictor(Predictor):
         return net
 
     def predict(self, x, soft=False):
-        rationale_data = self.extractor.extract_rationales(x)
-        pred = self.net.forward(self.net.process_input(rationale_data["rationale_avg_vec"]))
+        _, rationale_data = self.extractor.extract_rationales(x)
+        xbatch = torch.zeros(len(rationale_data["rationale_avg_vec"]),
+                             rationale_data["rationale_avg_vec"][0][1].shape[0])
+        for j in range(len(rationale_data["rationale_avg_vec"])):
+            xbatch[j] = rationale_data["rationale_avg_vec"][j][1]
+
+        pred = self.net(xbatch)
+
         if soft:
             return pred, rationale_data["rationales"]
         else:
@@ -119,7 +125,7 @@ class BERTPredictor(Predictor):
         return net
 
     def predict(self, x, soft=False):
-        rationale_data = self.extractor.extract_rationales(x)
+        _, rationale_data = self.extractor.extract_rationales(x)
         pred = self.net.forward(self.net.process_input(rationale_data["rationales"]))
         if soft:
             return pred, rationale_data["rationales"]
@@ -132,6 +138,7 @@ def evaluate_dan_pred_model(net, extmodel, dev_x, dev_y, device):
     # dev set accuracy
     batch_size = min(10, len(dev_x)-1)
     num_correct = 0
+    num_total = 0
     for i in range(batch_size, len(dev_x), batch_size):
         xbatch_str = dev_x[i - batch_size:i]
         _, rationale_data = extmodel.extract_rationales(xbatch_str)
@@ -146,10 +153,11 @@ def evaluate_dan_pred_model(net, extmodel, dev_x, dev_y, device):
 
         pred_lbl = net(xbatch).argmax(dim=1)
         for j in range(len(pred_lbl)):
+            num_total += 1
             if pred_lbl[j]==ybatch[j]:
                 num_correct += 1
-    acc = num_correct / len(dev_x)
-    print("Dev Accuracy: {0} ({1} / {2})".format(acc * 100, num_correct, len(dev_x)))
+    acc = num_correct / num_total
+    print("Dev Accuracy: {0} ({1} / {2})".format(acc * 100, num_correct, num_total))
     return acc
 
 # expects train_x as list of strings, train_y as one-hot encoded label tensor
