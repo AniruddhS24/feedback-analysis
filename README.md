@@ -77,7 +77,7 @@ Random Field (CRF) layer attached. This results in more coherent rationale selec
 The predictor model analyzes sentiment for each extracted rationale for a given input text. This model is trained 
 on multi-class sentiment analysis from the SST-5 dataset.
 Models developed:
-- DAN Pred: A simple deep averaging network which averages BERT embeddings of rationales. Works
+- DAN Pred: A simple deep averaging network which averages word embeddings of rationales. Works
 decently and is fast to train.
 - BERT Pred: Encodes rationales once again through pretrained BERT, fine-tuned on more advanced
 sentiment task. Large language models so training isn't as fast.
