@@ -84,8 +84,8 @@ sentiment task. Large language models so training isn't as fast.
 
 ## TODO
 - (DONE) write processing for SST data, also write function to process text larger than 512 tokens (currently truncated) 
-- finalize the scoring function, test model on Amazon dataset
-- see if model can be trained on other sentiment-based tasks (i.e. sensing urgency or sarcasm), or transfer learning
+- (DONE) finalize the scoring function, test model on Amazon dataset
+- see if model can be trained on other sentiment-like tasks (i.e. sensing urgency or sarcasm)
 - package code and set up beta version of web app with AWS
 - create Chrome extension for this product (can apply on Google sheets/Google Form responses)
 
