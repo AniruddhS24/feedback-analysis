@@ -4,6 +4,7 @@ from models.featurescorer import *
 from models.extractor import *
 from models.predictor import *
 from flask import Flask, request, jsonify
+#from waitress import serve
 
 app = Flask(__name__)
 fbmodel = None
@@ -28,7 +29,7 @@ def save_feedbackmodel(save_path):
                               'saved/heuristicext.pt',
                               'saved/testdn.pt')
     with open(save_path, 'wb') as f:
-        pickle.dump(mainmodel, f, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(mainmodel, f)
 
 '''curl -i -H "Content-Type: application/json" -X POST -d '{"input": "The movie was ok"}' http://127.0.0.1:5000/'''
 @app.route('/', methods=['POST'])
@@ -42,9 +43,11 @@ def run_inference():
     return jsonify(output)
 
 if __name__ == '__main__':
-    with open('myfeedbackmodel.pickle', 'rb') as f:
+    with open('feedbackmodel.pickle', 'rb') as f:
         fbmodel = pickle.load(f)
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=80)
+    #serve(app, host='0.0.0.0', port=48932, url_scheme='https')
+    #save_feedbackmodel('feedbackmodel.pickle')
 
 
 '''
