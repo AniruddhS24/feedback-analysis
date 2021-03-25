@@ -23,7 +23,7 @@ lstm_crf:
   l2reg: 0.001
 bertpred:
   model_name: 'bertpred'
-  bert_model_name: 'bert-base-uncased'
+  bert_model_name: 'distilbert-base-uncased'
   freeze: False
   EPOCHS: 20
   batch_size: 32

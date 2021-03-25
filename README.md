@@ -2,6 +2,11 @@
 Feedback Analysis is a tool to analyze textual feedback
 and produce short, meaningful highlights that characterize sentiment. This repo contains the code used to design
 the underlying NLP system which is discussed in further detail below.
+
+DEMO: http://fbanalysisfrontend.s3-website.us-east-2.amazonaws.com
+
+** note: there were a few data processing issues when training the prediction module, so the highlight colors are not always accurate. I ran out of GCP credits to retrain :( but the model will be updated soon
+
 ## Motivation
 For many organizations, feedback forms are used to measure the quality of experience from a customer or employee's
 standpoint. Often times, insights expressed in feedback can help develop new solutions, reinforce positive behavior,

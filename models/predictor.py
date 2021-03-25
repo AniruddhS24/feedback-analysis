@@ -73,12 +73,13 @@ class BERTPred(nn.Module):
         self.bert_config = AutoConfig.from_pretrained(bert_model_type,
                                                       output_attentions=True)
         self.bert = AutoModel.from_pretrained(bert_model_type, config=self.bert_config)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.dpout = nn.Dropout(p=0.1)  # regularisation
-        self.dense1 = nn.Linear(self.bert.trainingconfig.hidden_size, 50)
+        self.dense1 = nn.Linear(self.bert_config.hidden_size, 50)
         self.act1 = nn.ReLU()
         self.dense2 = nn.Linear(50, 2)
         self.softmx = nn.LogSoftmax(dim=1)
-
+    
         nn.init.kaiming_uniform_(self.dense1.weight)
         nn.init.kaiming_uniform_(self.dense2.weight)
 
@@ -86,17 +87,18 @@ class BERTPred(nn.Module):
             for param in self.bert.parameters():
                 param.requires_grad = False
 
-    def process_input(self, rationales):
-        textrats = [rationales[i][1] for i in range(len(rationales))]
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+    def process_input(self, textrats):
+        # textrats = [rationales[i][1] for i in range(len(rationales))]
+        # tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         # fullrecon = []
         # for batch_item in rationales:
         #     reconstructed = " ".join(rationales[batch_item]).replace(" ##","")
         #     fullrecon.append(reconstructed)
-        return tokenizer(text=textrats,
-                  add_special_tokens=True,
-                  padding='max_length',
-                  return_tensors='pt')["input_ids"]
+        return self.tokenizer.encode(text=textrats,
+                     add_special_tokens=True,
+                     padding='max_length',
+                     truncation='only_first',
+                     return_tensors='pt')['input_ids']
 
     # input is of shape (batchsize, seqlen) - must be tokenized beforehand
     def forward(self, inpids):
@@ -213,6 +215,77 @@ def train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME, dev
         'accuracy': acc*100,
         'config': config}
     torch.save(checkpt, FILENAME)
+
+def evaluate_bert_pred_model(net, extmodel, dev_x, dev_y, device):
+    print("Evaluating BERT Pred Model...")
+    net.eval()
+    # dev set accuracy
+    batch_size = min(10, len(dev_x)-1)
+    num_correct = 0
+    num_total = 0
+    for i in range(batch_size, len(dev_x), batch_size):
+        xbatch_str = dev_x[i - batch_size:i]
+        xbatch = net.process_input(xbatch_str)
+        ybatch = dev_y[i - batch_size:i]
+        xbatch, ybatch = xbatch.to(device), ybatch.long().to(device)
+
+        pred_lbl = net(xbatch).argmax(dim=1)
+        for j in range(len(pred_lbl)):
+            num_total += 1
+            if pred_lbl[j]==ybatch[j]:
+                num_correct += 1
+    acc = num_correct / num_total
+    print("Dev Accuracy: {0} ({1} / {2})".format(acc * 100, num_correct, num_total))
+    return acc
+
+def train_bert_pred_model(train_x, train_y, dev_x, dev_y, FILENAME, device, config):
+    net = BERTPred(bert_model_type = config['bert_model_name'])
+    net = net.to(device)
+
+    # hyperparameters
+    EPOCHS = config['EPOCHS']
+    batch_size = config['batch_size']
+    lr = config['lr']
+    objective = nn.NLLLoss()
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=config['l2reg'])
+
+    print("Training BERT Pred Model...")
+    # training
+    for epoch in range(EPOCHS):
+        tot_loss = 0.0
+        perm = torch.randperm(len(train_x))
+        net.train()
+        for i in range(0, len(perm), batch_size):
+            optimizer.zero_grad()
+            xbatch_str = [train_x[j] for j in perm[i - batch_size:i]]
+            xbatch = net.process_input(xbatch_str)
+            ybatch = train_y[perm[i - batch_size:i]]
+            xbatch, ybatch = xbatch.to(device), ybatch.long().to(device)
+
+            pred = net(xbatch)
+            loss = objective(pred, ybatch)
+            tot_loss += loss.item()
+            loss.backward()
+            nn.utils.clip_grad_norm_(net.parameters(), max_norm=5.0)
+            optimizer.step()
+            del loss, pred, xbatch, ybatch, xbatch_str
+
+        print("Epoch {0}      Loss {1}".format(epoch, tot_loss))
+        if epoch%5==0:
+            acc = evaluate_bert_pred_model(net, dev_x, dev_y, device)
+            checkpt = {
+                'state_dict': net.state_dict(),
+                'accuracy': acc*100,
+                'config': config}
+            torch.save(checkpt, FILENAME[0:FILENAME.index('.')] + str(epoch) + 'epoch.pt')
+
+    acc = evaluate_bert_pred_model(net, dev_x, dev_y, device)
+    checkpt = {
+        'state_dict': net.state_dict(),
+        'accuracy': acc*100,
+        'config': config}
+    torch.save(checkpt, FILENAME)
+
 
 def load_predictor_model(model_file_path, extractor):
     checkpoint = torch.load(model_file_path)

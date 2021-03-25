@@ -4,7 +4,8 @@ from models.featurescorer import *
 from models.extractor import *
 from models.predictor import *
 from flask import Flask, request, jsonify
-#from waitress import serve
+# from waitress import serve
+# from flask_cors import CORS
 
 app = Flask(__name__)
 fbmodel = None
@@ -21,7 +22,7 @@ class FeedbackModel:
         compact_op = []
         preds, rats = self.pred.predict([x])
         for i in range(len(preds)):
-            compact_op.append((preds[i], rats[i][1]))
+            compact_op.append((preds[i].item(), rats[i][1]))
         return compact_op
 
 def save_feedbackmodel(save_path):
@@ -38,20 +39,27 @@ def run_inference():
     output_list = fbmodel.predict(data['input'])
     output = {}
     output['output_rationales'] = []
+    output['output_logits'] = []
     for x in output_list:
         output['output_rationales'].append(x[1])
+        output['output_logits'].append(x[0])
     return jsonify(output)
 
-if __name__ == '__main__':
+def deploy_backend_dev():
     with open('feedbackmodel.pickle', 'rb') as f:
         fbmodel = pickle.load(f)
     app.run(host='0.0.0.0', port=80)
-    #serve(app, host='0.0.0.0', port=48932, url_scheme='https')
-    #save_feedbackmodel('feedbackmodel.pickle')
-
 
 '''
-if __name__ == '__main__':
+must import relevant packages first (waitress and flask_cors), not in requirements.txt
+def deploy_backend_production():
+    CORS(app)
+    with open('feedbackmodel.pickle', 'rb') as f:
+        fbmodel = pickle.load(f)
+    serve(app, host='0.0.0.0', port=48932, url_scheme='https')
+'''
+
+def deploy_model():
     inputstr = sys.argv[1]
     # TODO: DAN with bert averages doesn't work well... maybe train BERT pred or use glove embeddings instead
     with open('myfeedbackmodel.pickle', 'rb') as f:
@@ -60,4 +68,6 @@ if __name__ == '__main__':
     mydata = unserialized_data.predict(inputstr)
     for x in mydata:
         print(str(x[0]) + "\t" + x[1])
-'''
+
+if __name__ == '__main__':
+    deploy_model()

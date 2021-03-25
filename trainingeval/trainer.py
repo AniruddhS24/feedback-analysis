@@ -59,5 +59,7 @@ if __name__ == '__main__':
         fsmodel = load_featurescorer_model(auxfs)
         extmodel = load_extractor_model(auxext, fsmodel)
         train_dan_pred_model(train_x, train_y, dev_x, dev_y, extmodel, FILENAME=savefile, device=device, config=trainingconfig[modelname])
+    elif modelname == 'bertpred':
+        train_bert_pred_model(train_x, train_y, dev_x, dev_y, FILENAME=savefile, device=device, config=trainingconfig[modelname])
     else:
         raise Exception("Model training not supported yet")
