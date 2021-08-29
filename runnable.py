@@ -1,14 +1,18 @@
 import sys
+import os
 import pickle
 from models.featurescorer import *
 from models.extractor import *
 from models.predictor import *
 from flask import Flask, request, jsonify
-# from waitress import serve
-# from flask_cors import CORS
+from waitress import serve
+from flask_cors import CORS
+import boto3
+
+s3 = boto3.client('s3')
+
 
 app = Flask(__name__)
-fbmodel = None
 
 class FeedbackModel:
     def __init__(self, supp_model_path, ext_model_path, pred_model_path):
@@ -32,8 +36,12 @@ def save_feedbackmodel(save_path):
     with open(save_path, 'wb') as f:
         pickle.dump(mainmodel, f)
 
-'''curl -i -H "Content-Type: application/json" -X POST -d '{"input": "The movie was ok"}' http://127.0.0.1:5000/'''
-@app.route('/', methods=['POST'])
+@app.route('/')
+def index():
+    return 'Welcome to Feedback Analysis API!'
+
+'''curl -i -H "Content-Type: application/json" -X POST -d '{"input": "The movie was ok"}' http://localhost:48932/inference'''
+@app.route('/inference', methods=['POST'])
 def run_inference():
     data = request.json
     output_list = fbmodel.predict(data['input'])
@@ -50,14 +58,13 @@ def deploy_backend_dev():
         fbmodel = pickle.load(f)
     app.run(host='0.0.0.0', port=80)
 
-'''
-must import relevant packages first (waitress and flask_cors), not in requirements.txt
+
+# must import relevant packages first (waitress and flask_cors), not in requirements.txt
 def deploy_backend_production():
+    print('serving app...')
     CORS(app)
-    with open('feedbackmodel.pickle', 'rb') as f:
-        fbmodel = pickle.load(f)
     serve(app, host='0.0.0.0', port=48932, url_scheme='https')
-'''
+
 
 def deploy_model():
     inputstr = sys.argv[1]
@@ -70,4 +77,10 @@ def deploy_model():
         print(str(x[0]) + "\t" + x[1])
 
 if __name__ == '__main__':
-    deploy_model()
+    with open('awspickledmodel.pickle', 'wb') as f:
+        s3.download_fileobj('feedbackanalysismodel', 'feedbackmodel.pickle', f)
+    with open('awspickledmodel.pickle', 'rb') as f:
+        fbmodel = pickle.load(f)
+    # with open('feedbackmodel.pickle', 'rb') as f:
+    #     fbmodel = pickle.load(f)
+    deploy_backend_production()
